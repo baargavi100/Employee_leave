@@ -1,21 +1,19 @@
 package com.lms.service;
 
-import com.lms.dto.response.LeaveBalanceResponse;
-import com.lms.dto.response.LeaveTypeBreakdown;
-import com.lms.entity.CompOffBalance;
-import com.lms.entity.LeaveAllocation;
-import com.lms.entity.User;
+import com.lms.dto.response.*;
+import com.lms.entity.*;
 import com.lms.enums.LeaveCategory;
 import com.lms.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class LeaveBalanceService {
 
@@ -27,75 +25,109 @@ public class LeaveBalanceService {
 
     private static final int MAX_CARRY_FORWARD = 10;
 
+    /**
+     * ====================================================================
+     * MAIN METHOD: Get complete leave balance with comp-off breakdown
+     * ====================================================================
+     */
     @Transactional(readOnly = true)
-    public LeaveBalanceResponse getBalance(Long employeeId, int year) {
+    public LeaveBalanceResponse getBalance(Long employeeId, Integer year) {
+        log.info("[BALANCE] Calculating for employee={}, year={}", employeeId, year);
 
         User employee = userRepo.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                .orElseThrow(() -> new RuntimeException("Employee not found: " + employeeId));
 
-        List<LeaveAllocation> allocations =
-                allocationRepo.findByEmployeeIdAndYear(employeeId, year);
+        // 1. Get allocations
+        List<LeaveAllocation> allocations = allocationRepo
+                .findByEmployeeIdAndYear(employeeId, year);
 
-        Map<LeaveCategory, Double> usedMap =
-                requestRepo.getUsedDaysByCategory(employeeId, year)
-                        .stream()
-                        .collect(Collectors.toMap(
-                                r -> (LeaveCategory) r[0],
-                                r -> ((Number) r[1]).doubleValue()
-                        ));
+        // 2. Get APPROVED leaves grouped by category
+        List<Object[]> usedRaw = requestRepo.getUsedDaysByCategory(employeeId, year);
+        Map<LeaveCategory, Double> usedMap = usedRaw.stream()
+                .collect(Collectors.toMap(
+                        row -> (LeaveCategory) row[0],
+                        row -> ((Number) row[1]).doubleValue()
+                ));
 
+        // 3. Build breakdown per leave type
+        List<LeaveTypeBreakdown> breakdown = new ArrayList<>();
         double totalAllocated = 0;
         double totalUsed = 0;
-        List<LeaveTypeBreakdown> breakdown = new ArrayList<>();
 
         for (LeaveAllocation alloc : allocations) {
             double allocated = alloc.getAllocatedDays() + alloc.getCarriedForwardDays();
             double used = usedMap.getOrDefault(alloc.getLeaveCategory(), 0.0);
+            Long halfDays = requestRepo.countHalfDays(employeeId, alloc.getLeaveCategory(), year);
 
             breakdown.add(new LeaveTypeBreakdown(
                     alloc.getLeaveCategory().name(),
                     allocated,
                     used,
                     allocated - used,
-                    requestRepo.countHalfDays(
-                            employeeId,
-                            alloc.getLeaveCategory(),
-                            year
-                    )
+                    halfDays.intValue()
             ));
 
             totalAllocated += allocated;
             totalUsed += used;
         }
 
-        CompOffBalance compOff =
-                compOffRepo.findByEmployeeIdAndYear(employeeId, year).orElse(null);
+        // 4. Get comp-off balance (CRITICAL: Shows in breakdown)
+        CompOffBalance compOff = compOffRepo.findByEmployeeIdAndYear(employeeId, year)
+                .orElse(null);
 
+        double compOffEarned = (compOff != null) ? compOff.getEarned() : 0;
+        double compOffUsed = (compOff != null) ? compOff.getUsed() : 0;
+        double compOffBalance = (compOff != null) ? compOff.getBalance() : 0;
+
+        // Add comp-off to breakdown
+        breakdown.add(new LeaveTypeBreakdown(
+                "COMP_OFF",
+                compOffEarned,
+                compOffUsed,
+                compOffBalance,
+                0  // No half-days for comp-off
+        ));
+
+        // 5. Get LOP (cumulative)
+        Double lopTotal = lopRepo.getTotalLopForYear(employeeId, year);
+        double lop = (lopTotal != null) ? lopTotal : 0.0;
+
+        // 6. Monthly stats
+        int currentMonth = LocalDate.now().getMonthValue();
+        Long monthApproved = requestRepo.countApprovedInMonth(employeeId, year, currentMonth);
+
+        // 7. Carry forward calculation
         double remaining = totalAllocated - totalUsed;
+        double eligibleCarry = Math.min(remaining, MAX_CARRY_FORWARD);
 
-        LeaveBalanceResponse res = new LeaveBalanceResponse();
-        res.setEmployeeId(employeeId);
-        res.setEmployeeName(employee.getFirstName() + " " + employee.getLastName());
-        res.setYear(year);
-        res.setTotalAllocated(totalAllocated);
-        res.setTotalUsed(totalUsed);
-        res.setTotalRemaining(remaining);
-        res.setCompOffBalance(compOff != null ? compOff.getBalance() : 0);
-        res.setCompOffNegative(compOff != null && compOff.getBalance() < 0);
-        res.setLopPercentage(
-                Optional.ofNullable(lopRepo.getTotalLopForYear(employeeId, year)).orElse(0.0)
-        );
-        res.setEligibleToCarry(Math.min(remaining, MAX_CARRY_FORWARD));
-        res.setCurrentMonthApproved(
-                (int) requestRepo.countApprovedInMonth(
-                        employeeId,
-                        year,
-                        LocalDate.now().getMonthValue()
-                )
-        );
-        res.setExceededMonthlyLimit(res.getCurrentMonthApproved() > 2);
-        res.setBreakdown(breakdown);
+        // 8. Carried from last year
+        double carriedForward = allocations.stream()
+                .mapToDouble(LeaveAllocation::getCarriedForwardDays)
+                .sum();
 
-        return res;
+        // 9. Build response
+        LeaveBalanceResponse response = new LeaveBalanceResponse();
+        response.setEmployeeId(employeeId);
+        response.setEmployeeName(employee.getFirstName() + " " + employee.getLastName());
+        response.setYear(year);
+        response.setTotalAllocated(totalAllocated);
+        response.setTotalUsed(totalUsed);
+        response.setTotalRemaining(remaining);
+        response.setCompOffBalance(compOffBalance);
+        response.setCompOffNegative(compOffBalance < 0);
+        response.setCompOffEarned(compOffEarned);
+        response.setCompOffUsed(compOffUsed);
+        response.setLopPercentage(lop);
+        response.setEligibleToCarry(eligibleCarry);
+        response.setCarriedFromLastYear(carriedForward);
+        response.setCurrentMonthApproved(monthApproved.intValue());
+        response.setExceededMonthlyLimit(monthApproved > 2);
+        response.setBreakdown(breakdown);
+
+
+        log.info("[BALANCE] Calculated: allocated={}, used={}, compOff={}, LOP={}%",
+                totalAllocated, totalUsed, compOffBalance, lop);
+
+        return response;
     }
 }

@@ -1,20 +1,17 @@
 package com.lms.dto.response;
-
-import lombok.Data;
-
+import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class LeaveHistoryResponse {
-
     private Long leaveId;
     private String leaveType;
-
     private LocalDate startDate;
     private LocalDate endDate;
-    private double totalDays;
-
+    private Double totalDays;
     private String status;
 
     // Who applied
@@ -26,4 +23,8 @@ public class LeaveHistoryResponse {
     private LocalDateTime approvedAt;
 
     private String reason;
+
+    // Comp-off fields
+    private Boolean usesCompOff;
+    private Double compOffDaysUsed;
 }

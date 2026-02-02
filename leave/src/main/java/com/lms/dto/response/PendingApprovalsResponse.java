@@ -1,11 +1,11 @@
 package com.lms.dto.response;
-
-import lombok.Data;
+import lombok.*;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class PendingApprovalsResponse {
-
-    private int pendingCount;
-    private int thisMonth;
-    private int thisWeek;
+    private Integer pendingCount;
+    private Integer pendingLeaves;
+    private Integer pendingCompOffs;
 }

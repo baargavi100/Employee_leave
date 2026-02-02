@@ -1,35 +1,42 @@
 package com.lms.dto.response;
-
-import lombok.Data;
-
+import lombok.*;
 import java.util.List;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class LeaveBalanceResponse {
-
     private Long employeeId;
     private String employeeName;
-    private int year;
+    private Integer year;
 
     // Totals
-    private double totalAllocated;
-    private double totalUsed;
-    private double totalRemaining;
+    private Double totalAllocated;
+    private Double totalUsed;
+    private Double totalRemaining;
+    private Double earnedLeaves;
 
-    // Comp Off
-    private double compOffBalance;
-    private boolean compOffNegative;
+    // Comp Off (ENHANCED)
+    private Double compOffBalance;
+    private Boolean compOffNegative;
+    private Double compOffEarned;     // NEW
+    private Double compOffUsed;       // NEW
 
-    // Loss Of Pay
-    private double lopPercentage;
+    // Loss of Pay
+    private Double lopPercentage;
+    private Integer monthlyViolations;
 
-    // Carry forward
-    private double eligibleToCarry;
+    // Carry Forward
+    private Double carriedFromLastYear;
+    private Double eligibleToCarry;
 
-    // Monthly stats
-    private int currentMonthApproved;
-    private boolean exceededMonthlyLimit;
+    // Monthly Stats
+    private Integer currentMonthApproved;
+    private Boolean exceededMonthlyLimit;
 
-    // Per leave type breakdown
+    // Working Days
+    private Integer totalWorkingDays;  // NEW
+
+    // Breakdown
     private List<LeaveTypeBreakdown> breakdown;
 }

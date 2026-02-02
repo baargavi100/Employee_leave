@@ -2,10 +2,10 @@ package com.lms.repository;
 
 import com.lms.entity.CompOffBalance;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
+@Repository
 public interface CompOffBalanceRepository extends JpaRepository<CompOffBalance, Long> {
-
-    Optional<CompOffBalance> findByEmployeeIdAndYear(Long employeeId, int year);
+    Optional<CompOffBalance> findByEmployeeIdAndYear(Long employeeId, Integer year);
 }

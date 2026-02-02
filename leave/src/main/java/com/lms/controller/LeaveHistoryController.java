@@ -5,7 +5,6 @@ import com.lms.service.LeaveHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
@@ -18,13 +17,13 @@ public class LeaveHistoryController {
 
     /**
      * GET /api/history/{employeeId}
+     * Get complete leave history for employee
      */
     @GetMapping("/{employeeId}")
     public ResponseEntity<List<LeaveHistoryResponse>> getHistory(
-            @PathVariable Long employeeId
-    ) {
-        return ResponseEntity.ok(
-                historyService.getEmployeeHistory(employeeId)
-        );
+            @PathVariable Long employeeId) {
+
+        List<LeaveHistoryResponse> history = historyService.getEmployeeHistory(employeeId);
+        return ResponseEntity.ok(history);
     }
 }
