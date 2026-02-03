@@ -1,6 +1,5 @@
 package com.lms.entity;
 
-import com.lms.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -11,7 +10,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,20 +17,21 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "first_name")
     private String firstName;
+
+    @Column(name = "last_name")
     private String lastName;
 
-    @Enumerated(EnumType.STRING)
-    private Role role;
+    @Column(nullable = false)
+    private String role;  // EMPLOYEE, MANAGER, ADMIN
 
-    @ManyToOne
-    @JoinColumn(name = "manager_id")
-    private User manager;
+    @Column(name = "manager_id")
+    private Long managerId;
 
-    private LocalDateTime createdAt;
+    @Column(name = "total_working_days")
+    private Integer totalWorkingDays = 0;
 
-    @PrePersist
-    void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
+    @Column(name = "created_at")
+    private LocalDateTime createdAt = LocalDateTime.now();
 }

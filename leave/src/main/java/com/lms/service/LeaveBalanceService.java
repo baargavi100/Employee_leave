@@ -2,7 +2,6 @@ package com.lms.service;
 
 import com.lms.dto.response.*;
 import com.lms.entity.*;
-import com.lms.enums.LeaveCategory;
 import com.lms.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +26,7 @@ public class LeaveBalanceService {
 
     /**
      * ====================================================================
-     * MAIN METHOD: Get complete leave balance with comp-off breakdown
+     * GET COMPLETE LEAVE BALANCE - YOUR MAIN TASK
      * ====================================================================
      */
     @Transactional(readOnly = true)
@@ -41,15 +40,15 @@ public class LeaveBalanceService {
         List<LeaveAllocation> allocations = allocationRepo
                 .findByEmployeeIdAndYear(employeeId, year);
 
-        // 2. Get APPROVED leaves grouped by category
+        // 2. Get APPROVED leaves grouped by category (CRITICAL: PENDING not counted)
         List<Object[]> usedRaw = requestRepo.getUsedDaysByCategory(employeeId, year);
-        Map<LeaveCategory, Double> usedMap = usedRaw.stream()
+        Map<String, Double> usedMap = usedRaw.stream()
                 .collect(Collectors.toMap(
-                        row -> (LeaveCategory) row[0],
+                        row -> (String) row[0],
                         row -> ((Number) row[1]).doubleValue()
                 ));
 
-        // 3. Build breakdown per leave type
+        // 3. Build breakdown per leave type (INCLUDING HALF-DAYS)
         List<LeaveTypeBreakdown> breakdown = new ArrayList<>();
         double totalAllocated = 0;
         double totalUsed = 0;
@@ -60,7 +59,7 @@ public class LeaveBalanceService {
             Long halfDays = requestRepo.countHalfDays(employeeId, alloc.getLeaveCategory(), year);
 
             breakdown.add(new LeaveTypeBreakdown(
-                    alloc.getLeaveCategory().name(),
+                    alloc.getLeaveCategory(),
                     allocated,
                     used,
                     allocated - used,
@@ -79,26 +78,26 @@ public class LeaveBalanceService {
         double compOffUsed = (compOff != null) ? compOff.getUsed() : 0;
         double compOffBalance = (compOff != null) ? compOff.getBalance() : 0;
 
-        // Add comp-off to breakdown
+        // Add COMP_OFF to breakdown (as shown in requirements)
         breakdown.add(new LeaveTypeBreakdown(
                 "COMP_OFF",
                 compOffEarned,
                 compOffUsed,
                 compOffBalance,
-                0  // No half-days for comp-off
+                0
         ));
 
-        // 5. Get LOP (cumulative)
+        // 5. Get LOP (cumulative for the year)
         Double lopTotal = lopRepo.getTotalLopForYear(employeeId, year);
         double lop = (lopTotal != null) ? lopTotal : 0.0;
 
-        // 6. Monthly stats
+        // 6. Monthly stats (current month)
         int currentMonth = LocalDate.now().getMonthValue();
         Long monthApproved = requestRepo.countApprovedInMonth(employeeId, year, currentMonth);
 
         // 7. Carry forward calculation
         double remaining = totalAllocated - totalUsed;
-        double eligibleCarry = Math.min(remaining, MAX_CARRY_FORWARD);
+        double eligibleCarry = (remaining >= MAX_CARRY_FORWARD) ? MAX_CARRY_FORWARD : 0.0;
 
         // 8. Carried from last year
         double carriedForward = allocations.stream()
@@ -123,10 +122,10 @@ public class LeaveBalanceService {
         response.setCurrentMonthApproved(monthApproved.intValue());
         response.setExceededMonthlyLimit(monthApproved > 2);
         response.setBreakdown(breakdown);
+        response.setTotalWorkingDays(employee.getTotalWorkingDays());
 
-
-        log.info("[BALANCE] Calculated: allocated={}, used={}, compOff={}, LOP={}%",
-                totalAllocated, totalUsed, compOffBalance, lop);
+        log.info("[BALANCE] Result: allocated={}, used={}, remaining={}, compOff={}, LOP={}%",
+                totalAllocated, totalUsed, remaining, compOffBalance, lop);
 
         return response;
     }

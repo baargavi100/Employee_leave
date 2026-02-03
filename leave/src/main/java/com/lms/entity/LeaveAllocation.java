@@ -1,13 +1,10 @@
 package com.lms.entity;
 
-import com.lms.enums.LeaveCategory;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "leave_allocations", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"employee_id", "leave_category", "year"})
-})
+@Table(name = "leave_allocations")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,17 +13,16 @@ public class LeaveAllocation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "employee_id", nullable = false)
-    private User employee;
+    @Column(name = "employee_id", nullable = false)
+    private Long employeeId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "leave_category")
-    private LeaveCategory leaveCategory;
+    @Column(name = "leave_category", nullable = false)
+    private String leaveCategory;
 
+    @Column(nullable = false)
     private Integer year;
 
-    @Column(name = "allocated_days")
+    @Column(name = "allocated_days", nullable = false)
     private Double allocatedDays;
 
     @Column(name = "carried_forward_days")
