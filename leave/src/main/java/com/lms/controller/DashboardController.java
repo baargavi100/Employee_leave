@@ -19,12 +19,6 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
 
-    /**
-     * ================================================================
-     * GET /api/dashboard/monthly-stats/{employeeId}?year=2025&month=2
-     * Get monthly statistics for EMPLOYEE dashboard
-     * ================================================================
-     */
     @GetMapping("/monthly-stats/{employeeId}")
     public ResponseEntity<MonthlyStatsResponse> getMonthlyStats(
             @PathVariable Long employeeId,
@@ -43,12 +37,6 @@ public class DashboardController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * ================================================================
-     * GET /api/dashboard/team-balances/{managerId}?year=2025
-     * Get all team members' balances for MANAGER dashboard
-     * ================================================================
-     */
     @GetMapping("/team-balances/{managerId}")
     public ResponseEntity<List<TeamMemberBalance>> getTeamBalances(
             @PathVariable Long managerId,
@@ -63,12 +51,6 @@ public class DashboardController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * ================================================================
-     * GET /api/dashboard/pending-count/{managerId}
-     * Get pending approvals count for MANAGER dashboard
-     * ================================================================
-     */
     @GetMapping("/pending-count/{managerId}")
     public ResponseEntity<Integer> getPendingCount(@PathVariable Long managerId) {
         log.info("[API] GET pending-count: manager={}", managerId);

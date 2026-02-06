@@ -15,13 +15,6 @@ public class AdminController {
 
     private final CarryForwardService carryForwardService;
 
-    /**
-     * ================================================================
-     * POST /api/admin/carry-forward?fromYear=2025
-     * Process year-end carry forward for all employees
-     * Run this at end of year to set up next year's allocations
-     * ================================================================
-     */
     @PostMapping("/carry-forward")
     public ResponseEntity<String> processCarryForward(
             @RequestParam Integer fromYear) {
@@ -39,12 +32,6 @@ public class AdminController {
         }
     }
 
-    /**
-     * ================================================================
-     * POST /api/admin/carry-forward/{employeeId}?fromYear=2025
-     * Process carry forward for single employee
-     * ================================================================
-     */
     @PostMapping("/carry-forward/{employeeId}")
     public ResponseEntity<String> processEmployeeCarryForward(
             @PathVariable Long employeeId,

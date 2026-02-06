@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
 @Service
 @Slf4j
@@ -17,42 +18,35 @@ public class LossOfPayService {
 
     /**
      * ====================================================================
-     * AUTO-UPDATE: Monthly limit violation → +1% LOP
-     * Called when >2 leaves approved in a month
+     * ONLY LOP TRIGGER: Monthly limit violation (>2 approved)
      * ====================================================================
      */
     @Transactional
     public void applyMonthlyLimitViolation(Long empId, Integer year, Integer month) {
         LossOfPayRecord lop = getOrCreate(empId, year, month);
 
-        lop.setMonthlyViolationLop(lop.getMonthlyViolationLop() + 1.0);
-        lop.setMonthlyViolationCount(lop.getMonthlyViolationCount() + 1);
+        // ═══════════════════════════════════════════════════════════════
+        // OLD CODE:
+        // lop.setMonthlyViolationLop(lop.getMonthlyViolationLop() + 1.0);
+        // lop.setTotalLopPercentage(lop.getMonthlyViolationLop() + lop.getCompOffNegativeLop());
+        //
+        // NEW CODE: Only monthly violation
+        // ═══════════════════════════════════════════════════════════════
+        lop.setLopPercentage(lop.getLopPercentage() + 1.0);
+        lop.setViolationCount(lop.getViolationCount() + 1);
         lop.setReason("Monthly limit exceeded (>2 approved leaves)");
+        lop.setUpdatedAt(LocalDateTime.now());
 
-        lopRepo.save(lop);  // @PreUpdate auto-calculates total
+        lopRepo.save(lop);
 
         log.warn("[LOP] Monthly violation: emp={}, month={}/{}, +1% → total={}%",
-                empId, month, year, lop.getTotalLopPercentage());
+                empId, month, year, lop.getLopPercentage());
     }
 
-    /**
-     * ====================================================================
-     * AUTO-UPDATE: Comp-off negative → +1% LOP
-     * Called when comp-off balance goes negative
-     * ====================================================================
-     */
-    @Transactional
-    public void applyCompOffNegativePenalty(Long empId, Integer year, Integer month) {
-        LossOfPayRecord lop = getOrCreate(empId, year, month);
-
-        lop.setCompOffNegativeLop(lop.getCompOffNegativeLop() + 1.0);
-        lop.setReason("Comp-off balance went negative");
-
-        lopRepo.save(lop);  // @PreUpdate auto-calculates total
-
-        log.warn("[LOP] Comp-off negative: emp={}, month={}/{}, +1% → total={}%",
-                empId, month, year, lop.getTotalLopPercentage());
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // OLD CODE: (REMOVED - No comp-off LOP)
+    // public void applyCompOffNegativePenalty(...) { ... }
+    // ═══════════════════════════════════════════════════════════════
 
     private LossOfPayRecord getOrCreate(Long empId, Integer year, Integer month) {
         return lopRepo.findByEmployeeIdAndYearAndMonth(empId, year, month)
@@ -61,6 +55,8 @@ public class LossOfPayService {
                     lop.setEmployeeId(empId);
                     lop.setYear(year);
                     lop.setMonth(month);
+                    lop.setLopPercentage(0.0);
+                    lop.setViolationCount(0);
                     return lop;
                 });
     }

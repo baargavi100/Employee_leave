@@ -12,30 +12,34 @@ public class LeaveBalanceResponse {
     private Integer year;
 
     // Total leave statistics
-    private Double totalAllocated;     // Base 24 + carried forward
-    private Double totalUsed;          // ONLY APPROVED leaves
-    private Double totalRemaining;     // allocated - used
+    private Double totalAllocated;
+    private Double totalUsed;
+    private Double totalRemaining;
 
-    // Comp Off (appears in breakdown)
-    private Double compOffBalance;     // Can be negative
-    private Boolean compOffNegative;   // True if balance < 0
-    private Double compOffEarned;      // Total earned
-    private Double compOffUsed;        // Total used
+    // ═══════════════════════════════════════════════════════════════
+    // OLD CODE:
+    // private Boolean compOffNegative;  // ❌ REMOVED
+    //
+    // NEW CODE: Comp-off never negative
+    // ═══════════════════════════════════════════════════════════════
+    private Double compOffBalance;     // Always >= 0
+    private Double compOffEarned;
+    private Double compOffUsed;
 
-    // Loss of Pay (cumulative)
-    private Double lopPercentage;      // Total LOP for year
+    // Loss of Pay (only from monthly violations)
+    private Double lopPercentage;
 
     // Carry Forward
-    private Double carriedFromLastYear;  // Carried from previous year
-    private Double eligibleToCarry;      // Can carry to next year (0 or 10)
+    private Double carriedFromLastYear;
+    private Double eligibleToCarry;
 
     // Monthly Stats
-    private Integer currentMonthApproved;  // Approved count this month
-    private Boolean exceededMonthlyLimit;  // True if >2 this month
+    private Integer currentMonthApproved;
+    private Boolean exceededMonthlyLimit;
 
     // Working Days
-    private Integer totalWorkingDays;    // Total working days
+    private Integer totalWorkingDays;
 
-    // Breakdown per leave type (INCLUDING COMP_OFF)
+    // Breakdown per leave type
     private List<LeaveTypeBreakdown> breakdown;
 }
